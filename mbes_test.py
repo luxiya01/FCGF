@@ -19,15 +19,19 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import logging
 from mbes_data.lib.utils import load_config, setup_seed
-from mbes_data.lib.benchmark_utils import to_o3d_pcd, to_tsfm
+from mbes_data.lib.benchmark_utils import to_o3d_feats, to_o3d_pcd, to_tsfm, ransac_pose_estimation
 from mbes_data.datasets import mbes_data
-from mbes_data.lib.evaluations import (compute_metrics, save_results_to_file, update_metrics_dict,
-                                       summarize_metrics, print_metrics,
-                                       ALL_METRICS_TEMPLATE, update_results)
+from mbes_data.lib.evaluations import (save_results_to_file, update_results,
+                                       get_mutual_nearest_neighbor)
+
+import wandb
+import json
 
 setup_seed(0)
 
-def draw_results(data, xyz_down_src, xyz_down_ref, feature_src, feature_ref, pred_trans):
+
+def draw_results(data, xyz_down_src, xyz_down_ref, feature_src, feature_ref,
+                 pred_trans):
   src_pcd = o3d.geometry.PointCloud()
   src_pcd.points = o3d.utility.Vector3dVector(xyz_down_src)
 
@@ -74,11 +78,19 @@ def test(config):
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
   checkpoint = torch.load(config.model)
-  model = ResUNetBN2C(1, 16, normalize_feature=True, conv1_kernel_size=3, D=3)
+  model = ResUNetBN2C(
+      in_channels=config.in_channels,
+      out_channels=config.out_channels,
+      bn_momentum=config.bn_momentum,
+      conv1_kernel_size=config.conv1_kernel_size,
+      normalize_feature=config.normalize_feature,
+      D=config.D)
   model.load_state_dict(checkpoint['state_dict'])
   model.eval()
 
   model = model.to(device)
+  outdir = os.path.join(config.exp_dir, config.model)
+  os.makedirs(outdir, exist_ok=True)
 
   # Load data
   _, _, test_set = get_datasets(config)
@@ -107,18 +119,40 @@ def test(config):
         device=device,
         skip_check=True)
 
-    pred_trans = run_ransac(
-        to_o3d_pcd(xyz_down_src), to_o3d_pcd(xyz_down_ref),
-        make_open3d_feature_from_numpy(feature_src.detach().cpu().numpy()),
-        make_open3d_feature_from_numpy(feature_ref.detach().cpu().numpy()),
-        config.voxel_size)
-    update_results(results, data, pred_trans)
+    ransac_result = ransac_pose_estimation(
+        xyz_down_src,
+        xyz_down_ref,
+        feature_src.detach().cpu(),
+        feature_ref.detach().cpu(),
+        mutual=False,
+        distance_threshold=config.voxel_size * 1.5,
+        ransac_n=4)
+
+    data['feat_src_points'] = xyz_down_src
+    data['feat_ref_points'] = xyz_down_ref
+    data['feat_src'] = feature_src.detach().cpu()
+    data['feat_ref'] = feature_ref.detach().cpu()
+
+    #    pred_trans = run_ransac(
+    #        to_o3d_pcd(xyz_down_src), to_o3d_pcd(xyz_down_ref),
+    #        make_open3d_feature_from_numpy(feature_src.detach().cpu().numpy()),
+    #        make_open3d_feature_from_numpy(feature_ref.detach().cpu().numpy()),
+    #        config.voxel_size)
+    pred_trans = ransac_result.transformation
+    data['success'] = len(ransac_result.correspondence_set) > 0
+    results = update_results(results, data, pred_trans, config, outdir, logger)
+
+    gt_trans = to_tsfm(data['transform_gt_rot'], data['transform_gt_trans'])
+    print(f'pred_trans: {pred_trans}')
+    print(f'gt trans: {gt_trans}')
 
     if config.draw_registration_results:
-      draw_results(data, xyz_down_src, xyz_down_ref,
-                   feature_src, feature_ref, pred_trans)
+      draw_results(data, xyz_down_src, xyz_down_ref, feature_src, feature_ref,
+                   pred_trans)
 
-  save_results_to_file(logger, results, config)
+  # save results from the last file
+  save_results_to_file(logger, results, config, outdir)
+
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
@@ -130,11 +164,12 @@ if __name__ == '__main__':
   parser.add_argument(
       '--network_config',
       type=str,
-      default='config/network_configs/test.yaml',
+      default='network_configs/test-kitti.yaml',
       help='Path to network config file')
   args = parser.parse_args()
   mbes_config = edict(load_config(args.mbes_config))
   network_config = edict(load_config(args.network_config))
+
   config = copy.deepcopy(mbes_config)
   for k, v in network_config.items():
     if k not in config:
