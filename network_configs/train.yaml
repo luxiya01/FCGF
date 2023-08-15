@@ -1,0 +1,65 @@
+train:
+  trainer: 'HardestContrastiveLossTrainer'
+  save_freq_epoch: 3
+  val_batch_size: 1
+  out_dir: '20230814-wandb-crop-train-FCGF-from-KITTI'
+
+  # Hard negative mining
+  use_hard_negative: True
+  hard_negative_sample_ratio: 0.05
+  hard_negative_max_num: 3000
+  num_pos_per_batch: 1024
+  num_hn_samples_per_batch: 256
+
+  # Metric learning loss
+  neg_thresh: 1.4
+  pos_thresh: 0.1
+  neg_weight: 1
+  
+  # Data loader configs
+  train_phase: 'train'
+  val_phase: 'val'
+  test_phase: 'test'
+
+  stat_freq: 40
+  test_valid: True
+  val_max_iter: 1000
+  val_epoch_freq: 1
+  positive_pair_search_voxel_size_multiplier: 1.5
+  hit_ratio_thresh: 2.
+
+  # dNetwork specific configurations
+  model: 'ResUNetBN2C'
+  in_channels: 1
+  model_n_out: 32
+  conv1_kernel_size: 5
+  normalize_feature: True
+  dist_type: 'L2'
+  best_val_metric: 'feat_match_ratio'
+
+  # Optimizer arguments
+  optimizer: 'Adam'
+  max_epoch: 30
+  lr: 0.001
+  momentum: 0.9
+  sgd_momentum: 0.9
+  sgd_dampening: 0.1
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  weight_decay: 0.0001
+  iter_size: 1 # accumulate gradient
+  bn_momentum: 0.05
+  exp_gamma: 0.5
+  scheduler: 'ExpLR'
+
+  # Misc
+  use_gpu: True
+  weights: 'KITTI-v0.3-ResUNetBN2C-conv1-5-nout32.pth'
+  weights_dir: 
+  resume: 
+  resume_dir: #'20230811-tmp69-70-clean-.6overlap-train-output'
+  train_num_thread: 1
+  val_num_thread: 1
+  test_num_thread: 1
+  fast_validation: False
+  nn_max_n: 500 # The maximum number of features to find nearest neighbors in batch

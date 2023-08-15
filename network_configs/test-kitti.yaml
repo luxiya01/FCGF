@@ -1,0 +1,8 @@
+model:
+  model: 'KITTI-v0.3-ResUNetBN2C-conv1-5-nout32.pth'
+  in_channels: 1
+  out_channels: 32
+  bn_momentum: 0.05
+  conv1_kernel_size: 5
+  normalize_feature: True
+  D: 3

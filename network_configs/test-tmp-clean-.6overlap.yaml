@@ -1,0 +1,8 @@
+model:
+  model: '20230811-tmp69-70-clean-.6overlap-train-output/best_val_checkpoint.pth'
+  in_channels: 1
+  out_channels: 32
+  bn_momentum: 0.05
+  conv1_kernel_size: 5
+  normalize_feature: True
+  D: 3
