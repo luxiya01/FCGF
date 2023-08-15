@@ -25,6 +25,8 @@ from util.misc import _hash
 
 import MinkowskiEngine as ME
 
+from datetime import datetime
+
 
 class AlignmentTrainer:
 
@@ -70,16 +72,23 @@ class AlignmentTrainer:
 
     self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    self.optimizer = getattr(optim, config.optimizer)(
-        model.parameters(),
-        lr=config.lr,
-        momentum=config.momentum,
-        weight_decay=config.weight_decay)
+    if config.optimizer == 'SGD':
+      self.optimizer = getattr(optim, config.optimizer)(
+          model.parameters(),
+          lr=config.lr,
+          momentum=config.momentum,
+          weight_decay=config.weight_decay)
+    elif config.optimizer == 'Adam':
+      self.optimizer = getattr(optim, config.optimizer)(
+          model.parameters(), lr=config.lr, weight_decay=config.weight_decay,
+          betas=(config.adam_beta1, config.adam_beta2))
 
     self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, config.exp_gamma)
 
     self.start_epoch = 1
-    self.checkpoint_dir = config.out_dir
+
+    current_time = datetime.now().strftime('%Y%m%d-%H-%M-%S')
+    self.checkpoint_dir = os.path.join(config.out_dir, current_time)
 
     ensure_dir(self.checkpoint_dir)
     json.dump(
@@ -98,7 +107,7 @@ class AlignmentTrainer:
     self.model = self.model.to(self.device)
     self.writer = SummaryWriter(logdir=config.out_dir)
 
-    if config.resume is not None:
+    if config.resume is not None and config.resume != 'None':
       if osp.isfile(config.resume):
         logging.info("=> loading checkpoint '{}'".format(config.resume))
         state = torch.load(config.resume)
@@ -130,7 +139,7 @@ class AlignmentTrainer:
       lr = self.scheduler.get_lr()
       logging.info(f" Epoch: {epoch}, LR: {lr}")
       self._train_epoch(epoch)
-      self._save_checkpoint(epoch)
+      self._save_checkpoint(epoch, filename=f'checkpoint_{epoch}')
       self.scheduler.step()
 
       if self.test_valid and epoch % self.val_epoch_freq == 0:
@@ -229,6 +238,9 @@ class ContrastiveLossTrainer(AlignmentTrainer):
         # Caffe iter size
         data_timer.tic()
         input_dict = data_loader_iter.next()
+        if input_dict is None:
+          logging.warning(f'No data received: batch_idx {iter_idx}. Skipping.')
+          continue
         data_time += data_timer.toc(average=False)
 
         # pairs consist of (xyz1 index, xyz0 index)
@@ -299,7 +311,7 @@ class ContrastiveLossTrainer(AlignmentTrainer):
   def _valid_epoch(self):
     # Change the network to evaluation mode
     self.model.eval()
-    self.val_data_loader.dataset.reset_seed(0)
+    #self.val_data_loader.dataset.reset_seed(0)
     num_data = 0
     hit_ratio_meter, feat_match_ratio, loss_meter, rte_meter, rre_meter = AverageMeter(
     ), AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter()
@@ -311,7 +323,10 @@ class ContrastiveLossTrainer(AlignmentTrainer):
 
     for batch_idx in range(tot_num_data):
       data_timer.tic()
-      input_dict = data_loader_iter.next()
+      input_dict = next(data_loader_iter)
+      if input_dict is None:
+        logging.warning(f'No data received: batch_idx {batch_idx}. Skipping.')
+        continue
       data_timer.toc()
 
       # pairs consist of (xyz1 index, xyz0 index)
@@ -338,6 +353,8 @@ class ContrastiveLossTrainer(AlignmentTrainer):
       rte = np.linalg.norm(T_est[:3, 3] - T_gt[:3, 3])
       rte_meter.update(rte)
       rre = np.arccos((np.trace(T_est[:3, :3].t() @ T_gt[:3, :3]) - 1) / 2)
+      # Convert rre from rad -> degree
+      rre = rre * 180 / np.pi
       if not np.isnan(rre):
         rre_meter.update(rre)
 
@@ -468,7 +485,10 @@ class HardestContrastiveLossTrainer(ContrastiveLossTrainer):
       total_timer.tic()
       for iter_idx in range(iter_size):
         data_timer.tic()
-        input_dict = data_loader_iter.next()
+        input_dict = next(data_loader_iter)
+        if input_dict is None:
+          logging.warning(f'No data received: batch_idx {iter_idx}. Skipping.')
+          continue
         data_time += data_timer.toc(average=False)
 
         sinput0 = ME.SparseTensor(
@@ -599,6 +619,9 @@ class TripletLossTrainer(ContrastiveLossTrainer):
       for iter_idx in range(iter_size):
         data_timer.tic()
         input_dict = data_loader_iter.next()
+        if input_dict is None:
+          logging.warning(f'No data received: batch_idx {iter_idx}. Skipping.')
+          continue
         data_time += data_timer.toc(average=False)
 
         # pairs consist of (xyz1 index, xyz0 index)

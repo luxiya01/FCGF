@@ -24,6 +24,11 @@ kitti_icp_cache = {}
 
 
 def collate_pair_fn(list_data):
+  # Filter out pairs that are None (due to no matching_inds)
+  list_data = list(filter(lambda x: x is not None, list_data))
+  if len(list_data) == 0:
+    return None
+
   xyz0, xyz1, coords0, coords1, feats0, feats1, matching_inds, trans = list(
       zip(*list_data))
   xyz_batch0, xyz_batch1 = [], []
