@@ -2,7 +2,7 @@ train:
   trainer: 'HardestContrastiveLossTrainer'
   save_freq_epoch: 3
   val_batch_size: 1
-  out_dir: '20230814-wandb-crop-train-FCGF-from-KITTI'
+  out_dir: '20230817-tmp69-70-hyperparam-search'
 
   # Hard negative mining
   use_hard_negative: True
@@ -12,7 +12,7 @@ train:
   num_hn_samples_per_batch: 256
 
   # Metric learning loss
-  neg_thresh: 1.4
+  neg_thresh: 2.0
   pos_thresh: 0.1
   neg_weight: 1
   
@@ -21,9 +21,9 @@ train:
   val_phase: 'val'
   test_phase: 'test'
 
-  stat_freq: 40
+  stat_freq: 20
   test_valid: True
-  val_max_iter: 1000
+  val_max_iter: 500
   val_epoch_freq: 1
   positive_pair_search_voxel_size_multiplier: 1.5
   hit_ratio_thresh: 2.
@@ -39,8 +39,8 @@ train:
 
   # Optimizer arguments
   optimizer: 'Adam'
-  max_epoch: 30
-  lr: 0.001
+  max_epoch: 20
+  lr: 0.01
   momentum: 0.9
   sgd_momentum: 0.9
   sgd_dampening: 0.1
@@ -49,7 +49,7 @@ train:
   weight_decay: 0.0001
   iter_size: 1 # accumulate gradient
   bn_momentum: 0.05
-  exp_gamma: 0.5
+  exp_gamma: 0.99
   scheduler: 'ExpLR'
 
   # Misc
