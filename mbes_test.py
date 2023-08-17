@@ -67,6 +67,10 @@ def get_datasets(config: edict):
 
   return train_set, val_set, test_set
 
+def custom_collate_fn(list_data):
+  if len(list_data) == 0:
+    return None
+  return list_data[0]
 
 def test(config):
   # Setup logger
@@ -98,9 +102,14 @@ def test(config):
       test_set,
       batch_size=config.batch_size,
       num_workers=config.num_workers,
+      collate_fn=custom_collate_fn,
       shuffle=False)
   results = defaultdict(dict)
-  for _, data in tqdm(enumerate(test_loader), total=len(test_set)):
+  for idx, data in tqdm(enumerate(test_loader), total=len(test_set)):
+    if data is None:
+      print(f'Idx {idx} is None! Skipping...')
+      continue
+
     for key in data.keys():
       if isinstance(data[key], torch.Tensor):
         data[key] = data[key].squeeze(0)
@@ -164,7 +173,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--network_config',
       type=str,
-      default='network_configs/test-kitti.yaml',
+      default='network_configs/test-sweep-run1.yaml',
       help='Path to network config file')
   args = parser.parse_args()
   mbes_config = edict(load_config(args.mbes_config))
