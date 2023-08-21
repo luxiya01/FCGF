@@ -2,7 +2,7 @@ train:
   trainer: 'HardestContrastiveLossTrainer'
   save_freq_epoch: 3
   val_batch_size: 1
-  out_dir: '20230817-tmp69-70-hyperparam-search'
+  out_dir: '20230821-ExpLR-train-resume-debug'
 
   # Hard negative mining
   use_hard_negative: True
@@ -12,8 +12,8 @@ train:
   num_hn_samples_per_batch: 256
 
   # Metric learning loss
-  neg_thresh: 2.0
-  pos_thresh: 0.1
+  neg_thresh: 3.0
+  pos_thresh: 0.4
   neg_weight: 1
   
   # Data loader configs
@@ -23,7 +23,7 @@ train:
 
   stat_freq: 20
   test_valid: True
-  val_max_iter: 500
+  val_max_iter: 3000
   val_epoch_freq: 1
   positive_pair_search_voxel_size_multiplier: 1.5
   hit_ratio_thresh: 2.
@@ -39,25 +39,30 @@ train:
 
   # Optimizer arguments
   optimizer: 'Adam'
-  max_epoch: 20
-  lr: 0.01
+  # For SGD
   momentum: 0.9
-  sgd_momentum: 0.9
-  sgd_dampening: 0.1
+  # For Adam
   adam_beta1: 0.9
   adam_beta2: 0.999
+  # For both SGD and Adam
   weight_decay: 0.0001
   iter_size: 1 # accumulate gradient
   bn_momentum: 0.05
-  exp_gamma: 0.99
+
+  max_epoch: 100
+  lr: 0.003
   scheduler: 'ExpLR'
+  # For ExpLR
+  exp_gamma: 0.99
+  # For OneCycleLR
+  max_lr: .01
 
   # Misc
   use_gpu: True
-  weights: 'KITTI-v0.3-ResUNetBN2C-conv1-5-nout32.pth'
+  weights: #'KITTI-v0.3-ResUNetBN2C-conv1-5-nout32.pth'
   weights_dir: 
   resume: 
-  resume_dir: #'20230811-tmp69-70-clean-.6overlap-train-output'
+  resume_dir: '20230818-ExpLR-train/20230818-15-49-41' #'20230811-tmp69-70-clean-.6overlap-train-output'
   train_num_thread: 1
   val_num_thread: 1
   test_num_thread: 1
