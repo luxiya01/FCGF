@@ -105,8 +105,9 @@ if __name__ == '__main__':
 
     # Get last checkpoint
     pattern = re.compile(r'checkpoint_(\d+)\.pth')
-    latest_epoch = max([int(pattern.match(filename).gropu(1))
-                        for filename in os.listdir(resume_config['out_dir'])])
+    checkpoints = os.listdir(resume_config['out_dir'])
+    latest_epoch = max([int(pattern.match(filename).group(1))
+                        for filename in checkpoints if pattern.match(filename)])
     dconfig['resume'] = resume_config['out_dir'] + f'/checkpoint_{latest_epoch}.pth'
 
   logging.info('===> Configurations')
