@@ -36,9 +36,13 @@ def get_datasets(config: edict):
 
 
 def train(config):
-  run = wandb.init(project='mbes', name='20230815-data-no-overlap-test',
+  if config.scheduler == 'OneCycleLR':
+    name = f'{config.out_dir}-maxLR-{config.max_lr}-posthresh-{config.pos_thresh}'
+  elif config.scheduler == 'ExpLR':
+    name = f'{config.out_dir}-LR-{config.lr}-gamma-{config.exp_gamma}-posthresh-{config.pos_thresh}-negthresh-{config.neg_thresh}'
+  run = wandb.init(project='mbes', name=name,
                    config=config)
-  wandb.tensorboard.patch(root_logdir='./20230815-data-no-overlap-test')
+  wandb.tensorboard.patch(root_logdir=name)
   train_set, val_set, test_set = get_datasets(config)
   train_loader = torch.utils.data.DataLoader(
     train_set,

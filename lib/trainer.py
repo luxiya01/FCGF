@@ -83,7 +83,14 @@ class AlignmentTrainer:
           model.parameters(), lr=config.lr, weight_decay=config.weight_decay,
           betas=(config.adam_beta1, config.adam_beta2))
 
-    self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, config.exp_gamma)
+    if config.scheduler == 'ExpLR':
+      self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, config.exp_gamma)
+    elif config.scheduler == 'OneCycleLR':
+      self.scheduler = optim.lr_scheduler.OneCycleLR(self.optimizer,
+                                                     max_lr=config.max_lr,
+                                                     epochs=config.max_epoch,
+                                                     steps_per_epoch=len(data_loader))
+
 
     self.start_epoch = 1
 
@@ -521,6 +528,9 @@ class HardestContrastiveLossTrainer(ContrastiveLossTrainer):
         batch_neg_loss += neg_loss.item()
 
       self.optimizer.step()
+      if self.config.scheduler == 'OneCycleLR':
+        self.scheduler.step()
+
       gc.collect()
 
       torch.cuda.empty_cache()
@@ -534,6 +544,8 @@ class HardestContrastiveLossTrainer(ContrastiveLossTrainer):
         self.writer.add_scalar('train/loss', batch_loss, start_iter + curr_iter)
         self.writer.add_scalar('train/pos_loss', batch_pos_loss, start_iter + curr_iter)
         self.writer.add_scalar('train/neg_loss', batch_neg_loss, start_iter + curr_iter)
+        self.writer.add_scalar('train/lr', self.scheduler.get_last_lr(), start_iter + curr_iter)
+
         logging.info(
             "Train Epoch: {} [{}/{}], Current Loss: {:.3e} Pos: {:.3f} Neg: {:.3f}"
             .format(epoch, curr_iter,
