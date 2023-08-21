@@ -20,6 +20,7 @@ from mbes_data.lib.benchmark_utils import to_tsfm
 
 import wandb
 import json
+import re
 
 setup_seed(0)
 
@@ -101,7 +102,12 @@ if __name__ == '__main__':
     for k in dconfig:
       if k not in ['resume_dir'] and k in resume_config:
         dconfig[k] = resume_config[k]
-    dconfig['resume'] = resume_config['out_dir'] + '/best_val_checkpoint.pth'
+
+    # Get last checkpoint
+    pattern = re.compile(r'checkpoint_(\d+)\.pth')
+    latest_epoch = max([int(pattern.match(filename).gropu(1))
+                        for filename in os.listdir(resume_config['out_dir'])])
+    dconfig['resume'] = resume_config['out_dir'] + f'/checkpoint_{latest_epoch}.pth'
 
   logging.info('===> Configurations')
   for k in dconfig:
