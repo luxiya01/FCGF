@@ -6,3 +6,5 @@ model:
   conv1_kernel_size: 5
   normalize_feature: True
   D: 3
+  ransac_n: 4
+  ransac_iterations: 50000

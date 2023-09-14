@@ -93,7 +93,11 @@ def test(config):
   model.eval()
 
   model = model.to(device)
-  outdir = os.path.join(config.exp_dir, config.model)
+  if 'ransac_n' not in config:
+    config.ransac_n = 4
+  outdir = os.path.join(config.exp_dir, f'{config.model}')
+  #outdir = os.path.join(config.exp_dir, f'{config.model}-ransac_n={config.ransac_n}')
+  print(f'outdir: {outdir}')
   os.makedirs(outdir, exist_ok=True)
 
   # Load data
@@ -135,7 +139,8 @@ def test(config):
         feature_ref.detach().cpu(),
         mutual=False,
         distance_threshold=config.voxel_size * 1.5,
-        ransac_n=4)
+        ransac_n=config.ransac_n,
+        ransac_iterations=config.ransac_iterations,)
 
     data['feat_src_points'] = xyz_down_src
     data['feat_ref_points'] = xyz_down_ref
