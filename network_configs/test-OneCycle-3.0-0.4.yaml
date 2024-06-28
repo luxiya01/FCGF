@@ -1,0 +1,10 @@
+model:
+  model: '20230821-OneCycle-LR.01-posthresh.4-negthresh-3.0/20230821-17-26-45/20230824-13-15-10/20230825-18-13-07/20230905-12-19-21/checkpoint_96.pth'
+  in_channels: 1
+  out_channels: 32
+  bn_momentum: 0.05
+  conv1_kernel_size: 5
+  normalize_feature: True
+  D: 3
+  ransac_n: 4
+  ransac_iterations: 50000
